@@ -39,7 +39,8 @@ import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration; 
  * - Virtual threads   : VirtualThreadConfig (Project Loom — stable in 21)
  * - Stream.toList()   : unmodifiable list shorthand (Java 16+)
  */
-@SpringBootApplication(exclude = {DataSourceAutoConfiguration.class}) // 2. ADD THE EXCLUDE PROPERTY HERE
+
+@SpringBootApplication
 public class LifeGuardApplication {
     public static void main(String[] args) {
         SpringApplication.run(LifeGuardApplication.class, args);
