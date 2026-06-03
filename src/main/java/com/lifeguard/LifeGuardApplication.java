@@ -40,7 +40,7 @@ import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration; 
  * - Stream.toList()   : unmodifiable list shorthand (Java 16+)
  */
 
-@SpringBootApplication
+@SpringBootApplication(exclude = {DataSourceAutoConfiguration.class})
 public class LifeGuardApplication {
     public static void main(String[] args) {
         SpringApplication.run(LifeGuardApplication.class, args);
