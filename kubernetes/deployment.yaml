@@ -33,27 +33,9 @@ spec:
     spec:
       containers:
         - name: lifeguard-app
-          image: IMAGE_PLACEHOLDER    # Replaced dynamically by your Jenkinsfile
+          image: IMAGE_PLACEHOLDER
           ports:
             - containerPort: 8080
-          env:
-            - name: DB_HOST
-              valueFrom:
-                secretKeyRef:
-                  name: lifeguard-db-secret
-                  key: host
-            - name: DB_NAME
-              value: lifeguarddb
-            - name: DB_USER
-              valueFrom:
-                secretKeyRef:
-                  name: lifeguard-db-secret
-                  key: username
-            - name: DB_PASS
-              valueFrom:
-                secretKeyRef:
-                  name: lifeguard-db-secret
-                  key: password
           resources:
             requests:
               cpu: "250m"
@@ -80,12 +62,13 @@ metadata:
   name: lifeguard-app
   namespace: lifeguard
 spec:
+  type: NodePort # Changed from ClusterIP
   selector:
     app: lifeguard-app
   ports:
-    - port: 80
-      targetPort: 8080
-  type: ClusterIP
+    - port: 80         # Internal cluster service port
+      targetPort: 8080 # The port your Spring Boot container listens on
+      nodePort: 31000  # The external port opened on all AWS EC2 worker nodes
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
@@ -106,29 +89,6 @@ spec:
         target:
           type: Utilization
           averageUtilization: 70
----
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: lifeguard-ingress
-  namespace: lifeguard
-  annotations:
-    kubernetes.io/ingress.class: alb
-    alb.ingress.kubernetes.io/scheme: internet-facing
-    alb.ingress.kubernetes.io/target-type: ip
-    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-east-1:ACCOUNT:certificate/YOUR-CERT-ARN
-spec:
-  rules:
-    - host: lifeguard.yourdomain.com
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: lifeguard-app
-                port:
-                  number: 80
 
 
 
