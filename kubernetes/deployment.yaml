@@ -26,9 +26,10 @@ spec:
     spec:
       containers:
         - name: lifeguard-app
-          image: IMAGE_PLACEHOLDER # Dynamically updated by Jenkins sed string matching
+          image: IMAGE_PLACEHOLDER # Dynamically replaced by Jenkins
           ports:
             - containerPort: 8080
+          # CLEANED: All database env blocks and secret definitions completely removed
           resources:
             requests:
               cpu: "250m"
@@ -36,24 +37,23 @@ spec:
             limits:
               cpu: "500m"
               memory: "768Mi"
-          # 1. Startup Probe: Holds off Kubernetes while Java 21 JVM warms up
+          # Startup Probe: Safely holds off checks until Java 21 JVM warms up
           startupProbe:
             httpGet:
               path: /actuator/health/liveness
               port: 8080
-            failureThreshold: 12   # Try 12 times
-            periodSeconds: 10      # Every 10 seconds (gives up to 120 seconds total to boot)
-          # 2. Readiness Probe: Active only after the application passes startup
+            failureThreshold: 6
+            periodSeconds: 10
+          # Readiness Probe: Active only after the application passes startup
           readinessProbe:
             httpGet:
               path: /actuator/health/readiness
               port: 8080
             periodSeconds: 10
             failureThreshold: 2
-          # 3. Liveness Probe: Keeps checking if the container needs a reboot
+          # Liveness Probe: Monitors for application deadlock states
           livenessProbe:
             httpGet:
               path: /actuator/health/liveness
               port: 8080
             periodSeconds: 20
-            failureThreshold: 3
