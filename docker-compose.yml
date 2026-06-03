@@ -1,0 +1,116 @@
+version: '3.8'
+
+services:
+  # ── Application ──────────────────────────────────────────
+  app:
+    build: .
+    container_name: lifeguard-app
+    ports:
+      - "8080:8080"
+    environment:
+      DB_HOST: postgres
+      DB_NAME: lifeguarddb
+      DB_USER: lifeguard
+      DB_PASS: lifeguard123
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - lifeguard-net
+
+  # ── PostgreSQL Database ───────────────────────────────────
+  postgres:
+    image: postgres:15-alpine
+    container_name: lifeguard-postgres
+    environment:
+      POSTGRES_DB: lifeguarddb
+      POSTGRES_USER: lifeguard
+      POSTGRES_PASSWORD: lifeguard123
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lifeguard"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - lifeguard-net
+
+  # ── Elasticsearch ─────────────────────────────────────────
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: lifeguard-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ports:
+      - "9200:9200"
+    volumes:
+      - es-data:/usr/share/elasticsearch/data
+    networks:
+      - lifeguard-net
+
+  # ── Logstash ──────────────────────────────────────────────
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.11.0
+    container_name: lifeguard-logstash
+    volumes:
+      - ./docker/logstash/pipeline:/usr/share/logstash/pipeline
+    ports:
+      - "5044:5044"
+    depends_on:
+      - elasticsearch
+    networks:
+      - lifeguard-net
+
+  # ── Kibana ────────────────────────────────────────────────
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.0
+    container_name: lifeguard-kibana
+    ports:
+      - "5601:5601"
+    environment:
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+    depends_on:
+      - elasticsearch
+    networks:
+      - lifeguard-net
+
+  # ── Prometheus ────────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: lifeguard-prometheus
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    networks:
+      - lifeguard-net
+
+  # ── Grafana ───────────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:latest
+    container_name: lifeguard-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin123
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+    depends_on:
+      - prometheus
+    networks:
+      - lifeguard-net
+
+volumes:
+  postgres-data:
+  es-data:
+  grafana-data:
+
+networks:
+  lifeguard-net:
+    driver: bridge

@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: lifeguard-app
+  namespace: lifeguard
+spec:
+  selector:
+    app: lifeguard-app
+  ports:
+    - port: 80
+      targetPort: 8080
+  type: ClusterIP
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: lifeguard-hpa
+  namespace: lifeguard
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: lifeguard-app
+  minReplicas: 2
+  maxReplicas: 6
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
