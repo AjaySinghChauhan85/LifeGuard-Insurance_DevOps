@@ -1,59 +1,95 @@
+# apiVersion: apps/v1
+# kind: Deployment
+# metadata:
+#   name: lifeguard-app
+#   namespace: lifeguard
+#   labels:
+#     app: lifeguard-app
+# spec:
+#   replicas: 2
+#   selector:
+#     matchLabels:
+#       app: lifeguard-app
+#   strategy:
+#     type: RollingUpdate
+#     rollingUpdate:
+#       maxSurge: 1
+#       maxUnavailable: 0
+#   template:
+#     metadata:
+#       labels:
+#         app: lifeguard-app
+#       annotations:
+#         prometheus.io/scrape: "true"
+#         prometheus.io/port: "8080"
+#         prometheus.io/path: "/actuator/prometheus"
+#     spec:
+#       containers:
+#         - name: lifeguard-app
+#           image: IMAGE_PLACEHOLDER # Dynamically replaced by Jenkins
+#           ports:
+#             - containerPort: 8080
+#           # CLEANED: All database env blocks and secret definitions completely removed
+#           resources:
+#             requests:
+#               cpu: "250m"
+#               memory: "512Mi"
+#             limits:
+#               cpu: "500m"
+#               memory: "768Mi"
+#           # Startup Probe: Safely holds off checks until Java 21 JVM warms up
+#           startupProbe:
+#             httpGet:
+#               path: /actuator/health/liveness
+#               port: 8080
+#             failureThreshold: 6
+#             periodSeconds: 10
+#           # Readiness Probe: Active only after the application passes startup
+#           readinessProbe:
+#             httpGet:
+#               path: /actuator/health/readiness
+#               port: 8080
+#             periodSeconds: 10
+#             failureThreshold: 2
+#           # Liveness Probe: Monitors for application deadlock states
+#           livenessProbe:
+#             httpGet:
+#               path: /actuator/health/liveness
+#               port: 8080
+#             periodSeconds: 20
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: lifeguard-app
   namespace: lifeguard
-  labels:
-    app: lifeguard-app
 spec:
   replicas: 2
   selector:
     matchLabels:
       app: lifeguard-app
-  strategy:
-    type: RollingUpdate
-    rollingUpdate:
-      maxSurge: 1
-      maxUnavailable: 0
   template:
     metadata:
       labels:
         app: lifeguard-app
-      annotations:
-        prometheus.io/scrape: "true"
-        prometheus.io/port: "8080"
-        prometheus.io/path: "/actuator/prometheus"
     spec:
       containers:
-        - name: lifeguard-app
-          image: IMAGE_PLACEHOLDER # Dynamically replaced by Jenkins
-          ports:
-            - containerPort: 8080
-          # CLEANED: All database env blocks and secret definitions completely removed
-          resources:
-            requests:
-              cpu: "250m"
-              memory: "512Mi"
-            limits:
-              cpu: "500m"
-              memory: "768Mi"
-          # Startup Probe: Safely holds off checks until Java 21 JVM warms up
-          startupProbe:
-            httpGet:
-              path: /actuator/health/liveness
-              port: 8080
-            failureThreshold: 6
-            periodSeconds: 10
-          # Readiness Probe: Active only after the application passes startup
-          readinessProbe:
-            httpGet:
-              path: /actuator/health/readiness
-              port: 8080
-            periodSeconds: 10
-            failureThreshold: 2
-          # Liveness Probe: Monitors for application deadlock states
-          livenessProbe:
-            httpGet:
-              path: /actuator/health/liveness
-              port: 8080
-            periodSeconds: 20
+      - name: lifeguard-app
+        image: IMAGE_PLACEHOLDER
+        ports:
+        - containerPort: 8080
+      imagePullSecrets:
+      - name: dockerhub-secret
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: lifeguard-service
+  namespace: lifeguard
+spec:
+  type: LoadBalancer
+  selector:
+    app: lifeguard-app
+  ports:
+  - port: 80
+    targetPort: 8080
